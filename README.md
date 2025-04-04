@@ -14,5 +14,12 @@ go install github.com/RaveNoX/hujson-patch@latest
 
 ## Usage
 ```sh
+# hujson-patch
+
+Usage: hujson-patch.out <input> <patch>
+Use "-" to read from STDIN (only applicable to one argument)
 
 ```
+
+## License
+[MIT](./LICENSE)

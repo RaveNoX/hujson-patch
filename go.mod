@@ -1,4 +1,4 @@
-module hujson-patch
+module github.com/RaveNoX/hujson-patch
 
 go 1.23
 

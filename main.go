@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"dario.cat/mergo"
+	"github.com/mattbaird/jsonpatch"
 	"github.com/tailscale/hujson"
 )
 
@@ -76,12 +79,24 @@ func patch(inputFile, patchFile string) (string, error) {
 	}
 
 	patchVal.Standardize()
-	patchBytes, err = constructPatch(patchVal.Pack(), true)
+
+	inputOrig := inputVal.Clone()
+	inputOrig.Standardize()
+
+	mergedBytes, err := mergeJSON(inputOrig.Pack(), patchVal.Pack())
+	if err != nil {
+		return "", fmt.Errorf("cannot merge patch: %w", err)
+	}
+
+	patchOps, err := jsonpatch.CreatePatch(inputOrig.Pack(), mergedBytes)
 	if err != nil {
 		return "", fmt.Errorf("cannot construct patch: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "---[ Patch ]---\n%s\n---\n\n", patchBytes)
+	patchBytes, err = json.MarshalIndent(patchOps, "", " ")
+	if err != nil {
+		return "", fmt.Errorf("cannot marshal patch: %w", err)
+	}
 
 	err = inputVal.Patch(patchBytes)
 	if err != nil {
@@ -91,4 +106,26 @@ func patch(inputFile, patchFile string) (string, error) {
 	inputVal.Format()
 
 	return inputVal.String(), nil
+}
+
+func mergeJSON(srcBytes, dstBytes []byte, options ...func(*mergo.Config)) ([]byte, error) {
+	var dst, src map[string]interface{}
+
+	if err := json.Unmarshal(dstBytes, &dst); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal destination JSON: %w", err)
+	}
+	if err := json.Unmarshal(srcBytes, &src); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal source JSON: %w", err)
+	}
+
+	if err := mergo.Merge(&dst, src, options...); err != nil {
+		return nil, fmt.Errorf("merge failed: %w", err)
+	}
+
+	result, err := json.Marshal(dst)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal merged JSON: %w", err)
+	}
+
+	return result, nil
 }

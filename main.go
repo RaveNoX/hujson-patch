@@ -10,6 +10,7 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/mattbaird/jsonpatch"
+	"github.com/spf13/pflag"
 	"github.com/tailscale/hujson"
 )
 
@@ -20,22 +21,46 @@ Use "-" to read from STDIN (only applicable to one argument)
 	`
 )
 
-func main() {
-	if len(os.Args) != 3 {
+var (
+	outputFile string
+)
+
+func init() {
+	pflag.Usage = func() {
 		fmt.Fprintf(os.Stderr, strings.TrimSpace(usageText), filepath.Base(os.Args[0]))
-		os.Exit(1)
+		fmt.Fprintln(os.Stderr, "\nOptions:")
+		pflag.PrintDefaults()
 	}
 
-	inputFile := os.Args[1]
-	patchFile := os.Args[2]
+	pflag.StringVarP(&outputFile, "output", "o", "", "Write output to this file")
+}
+
+func main() {
+	pflag.Parse()
+
+	if pflag.NArg() != 2 {
+		pflag.Usage()
+		os.Exit(2)
+	}
+
+	inputFile := pflag.Arg(0)
+	patchFile := pflag.Arg(1)
 
 	result, err := patch(inputFile, patchFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(2)
+		os.Exit(1)
 	}
 
-	fmt.Println(result)
+	if outputFile != "" {
+		err = os.WriteFile(outputFile, []byte(result), os.ModePerm)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot write output file: %v\n", err)
+			os.Exit(3)
+		}
+	} else {
+		fmt.Println(result)
+	}
 }
 
 func patch(inputFile, patchFile string) (string, error) {

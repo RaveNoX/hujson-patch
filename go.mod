@@ -5,6 +5,7 @@ go 1.23
 require (
 	dario.cat/mergo v1.0.1
 	github.com/mattbaird/jsonpatch v0.0.0-20240118010651-0ba75a80ca38
+	github.com/spf13/pflag v1.0.6
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
 )
 
